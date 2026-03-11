@@ -12,6 +12,7 @@ export const enrichTool = {
   description: "Batch-enrich structured data (companies, people, domains) with web-sourced information",
   promptSnippet: "Use parallel_enrich to augment a list of entities with data from the web",
   promptGuidelines: [
+    "Call this tool directly as parallel_enrich({...}) — do NOT route through the mcp() tool",
     "Use when the user has a structured list (companies, people, domains) and wants to add web data to each item",
     "data should be an array of objects: [{company: 'Anthropic'}, {company: 'OpenAI'}]",
     "instructions is natural language: 'Find the CEO', 'Get founding year and HQ location', 'Find the pricing page URL'",
@@ -57,7 +58,9 @@ export const enrichTool = {
         details: { status: "running", taskgroup_id, num_runs },
       });
 
-      const items = await pollEnrich(taskgroup_id, signal, onUpdate, Date.now());
+      const startTime = Date.now();
+      const items = await pollEnrich(taskgroup_id, signal, onUpdate, startTime);
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
       const summary = items.slice(0, 3).map((item) => {
         const inputStr = Object.entries(item.input).map(([k, v]) => `${k}: ${v}`).join(", ");
         const outputStr = Object.entries(item.output).map(([k, v]) => `${k}: ${v}`).join(", ");
@@ -66,7 +69,7 @@ export const enrichTool = {
 
       return {
         content: [{ type: "text" as const, text: `Enriched ${items.length} items:\n\n${summary}${items.length > 3 ? `\n... and ${items.length - 3} more` : ""}` }],
-        details: { items, taskgroup_id, instructions: params.instructions },
+        details: { items, taskgroup_id, instructions: params.instructions, elapsed },
       };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: err.message }], details: {}, isError: true };

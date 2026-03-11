@@ -8,6 +8,7 @@ export const extractTool = {
   description: "Extract clean markdown content from one or more URLs",
   promptSnippet: "Use parallel_extract when you have a specific URL and need its content",
   promptGuidelines: [
+    "Call this tool directly as parallel_extract({...}) — do NOT route through the mcp() tool",
     "Use when the user provides a URL and wants its content",
     "Accepts a single URL string or an array of URLs for batch extraction",
     "Use the objective param to focus extraction on specific information (e.g. 'API pricing', 'changelog')",

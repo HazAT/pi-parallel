@@ -1,4 +1,11 @@
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
+
+function fmtSecs(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import type {
   EnrichItem,
@@ -322,13 +329,21 @@ export function renderResearchResult(
     return seen.size;
   })();
 
+  const elapsedStr = details?.elapsed ? fmtSecs(details.elapsed) : null;
+  const processorStr = details?.processor ?? null;
+  const metaStr = [
+    `${sourceCount} source${sourceCount !== 1 ? "s" : ""}`,
+    elapsedStr,
+    processorStr,
+  ].filter(Boolean).join(" · ");
+
   if (expanded) {
     const container = new Container();
     container.addChild(
       new Text(
         theme.fg("success", "✓ ") +
           theme.fg("toolTitle", theme.bold("parallel_research")) +
-          theme.fg("muted", ` · ${sourceCount} source${sourceCount !== 1 ? "s" : ""}`),
+          theme.fg("muted", ` · ${metaStr}`),
         0,
         0,
       ),
@@ -357,7 +372,7 @@ export function renderResearchResult(
   let text =
     theme.fg("success", "✓ ") +
     theme.fg("toolTitle", theme.bold("parallel_research")) +
-    theme.fg("muted", ` · ${sourceCount} source${sourceCount !== 1 ? "s" : ""}`);
+    theme.fg("muted", ` · ${metaStr}`);
   if (snippet) {
     text += "\n" + theme.fg("dim", snippet);
   }
@@ -400,6 +415,11 @@ export function renderEnrichResult(
   }
 
   const items = details.items;
+  const enrichElapsedStr = details.elapsed ? fmtSecs(details.elapsed) : null;
+  const enrichMeta = [
+    `${items.length} item${items.length !== 1 ? "s" : ""} enriched`,
+    enrichElapsedStr,
+  ].filter(Boolean).join(" · ");
 
   if (expanded) {
     const container = new Container();
@@ -407,7 +427,7 @@ export function renderEnrichResult(
       new Text(
         theme.fg("success", "✓ ") +
           theme.fg("toolTitle", theme.bold("parallel_enrich")) +
-          theme.fg("muted", ` · ${items.length} items enriched`),
+          theme.fg("muted", ` · ${enrichMeta}`),
         0,
         0,
       ),
@@ -435,7 +455,7 @@ export function renderEnrichResult(
   let text =
     theme.fg("success", "✓ ") +
     theme.fg("toolTitle", theme.bold("parallel_enrich")) +
-    theme.fg("muted", ` · ${items.length} items enriched`);
+    theme.fg("muted", ` · ${enrichMeta}`);
 
   for (const item of items.slice(0, 3)) {
     const inputKey = Object.keys(item.input ?? {})[0];

@@ -9,6 +9,7 @@ export const searchTool = {
   description: "Search the web using parallel.ai's AI-powered search",
   promptSnippet: "Use parallel_search for web searches and looking up current information",
   promptGuidelines: [
+    "Call this tool directly as parallel_search({...}) — do NOT route through the mcp() tool",
     "Use for quick web searches: 'what is X', 'latest news on Y', 'how does Z work'",
     "Use parallel_research instead for deep open-ended questions requiring synthesis across many sources",
     "afterDate param is useful for finding recent events or news (format: YYYY-MM-DD)",
