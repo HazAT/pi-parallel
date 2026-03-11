@@ -62,19 +62,6 @@ export type EnrichItem = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-async function sleepOrAbort(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) { reject(new Error("Aborted")); return; }
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(new Error("Aborted"));
-    }, { once: true });
-  });
-}
-
 export function formatElapsed(startTime: number): string {
   const elapsed = Math.round((Date.now() - startTime) / 1000);
   if (elapsed < 60) return `${elapsed}s`;
@@ -140,55 +127,118 @@ type OnUpdateCallback = (partial: {
   details: any;
 }) => void;
 
-export async function pollResearch(
+/**
+ * Delegates polling to `parallel-cli research poll` which handles its own
+ * status checks internally (default: every 45s). A setInterval ticks the
+ * elapsed timer in the TUI so the user sees progress without us burning
+ * API calls on manual status checks.
+ */
+export function pollResearch(
   runId: string,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback,
-  startTime: number
+  startTime: number,
 ): Promise<ResearchResult> {
-  while (true) {
-    await sleepOrAbort(10_000, signal);
-
-    const status = await runCli(["research", "status", runId, "--json"]);
-    const elapsed = formatElapsed(startTime);
-
-    onUpdate({
-      content: [{ type: "text", text: `⏳ Research running · ${elapsed} · ${status.status}` }],
-      details: { status: "running", run_id: runId, elapsed },
-    });
-
-    if (status.status === "completed") {
-      return runCli(["research", "poll", runId, "--json"]) as Promise<ResearchResult>;
-    }
-    if (status.status === "failed") {
-      throw new Error(`Research failed: ${status.error || "unknown error"}`);
-    }
-  }
+  return runCliWithProgress(
+    ["research", "poll", runId, "--timeout", "540", "--json"],
+    signal,
+    (elapsed) =>
+      onUpdate({
+        content: [{ type: "text", text: `⏳ Research running · ${formatElapsed(startTime)} · polling` }],
+        details: { status: "running", run_id: runId, elapsed },
+      }),
+    startTime,
+  ) as Promise<ResearchResult>;
 }
 
-export async function pollEnrich(
+/**
+ * Same approach for enrich — delegates to `parallel-cli enrich poll`.
+ */
+export function pollEnrich(
   taskgroupId: string,
   signal: AbortSignal | undefined,
   onUpdate: OnUpdateCallback,
-  startTime: number
+  startTime: number,
 ): Promise<EnrichItem[]> {
-  while (true) {
-    await sleepOrAbort(5_000, signal);
+  return runCliWithProgress(
+    ["enrich", "poll", taskgroupId, "--timeout", "540", "--json"],
+    signal,
+    (elapsed) =>
+      onUpdate({
+        content: [{ type: "text", text: `⏳ Enrich running · ${formatElapsed(startTime)} · polling` }],
+        details: { status: "running", taskgroup_id: taskgroupId, elapsed },
+      }),
+    startTime,
+  ) as Promise<EnrichItem[]>;
+}
 
-    const status = await runCli(["enrich", "status", taskgroupId, "--json"]);
-    const elapsed = formatElapsed(startTime);
-
-    onUpdate({
-      content: [{ type: "text", text: `⏳ Enrich running · ${elapsed} · ${status.status}` }],
-      details: { status: "running", taskgroup_id: taskgroupId, elapsed },
+/**
+ * Spawn a long-running parallel-cli command with a progress ticker.
+ * The CLI does its own polling internally; we just tick the elapsed timer
+ * every 5s so the TUI stays alive.
+ */
+function runCliWithProgress(
+  args: string[],
+  signal: AbortSignal | undefined,
+  tick: (elapsedSecs: number) => void,
+  startTime: number,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("parallel-cli", args, {
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
-    if (status.status === "completed") {
-      // enrich poll returns a bare array
-      return runCli(["enrich", "poll", taskgroupId, "--json"]) as Promise<EnrichItem[]>;
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+
+    // Tick elapsed every 5s for TUI progress
+    const timer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      tick(elapsed);
+    }, 5_000);
+
+    proc.on("close", (code: number | null) => {
+      clearInterval(timer);
+      if (code !== 0) {
+        let errorMsg = stderr;
+        if (!errorMsg && stdout) {
+          try {
+            const parsed = JSON.parse(stdout.trim());
+            if (parsed?.error?.message) errorMsg = parsed.error.message;
+          } catch { /* not JSON */ }
+        }
+        reject(new Error(errorMsg || `parallel-cli exited with code ${code}`));
+        return;
+      }
+      const cleaned = stdout
+        .split("\n")
+        .filter((line) => !/^\d{4}-\d{2}-\d{2}/.test(line))
+        .join("\n");
+      try {
+        resolve(JSON.parse(cleaned.trim() || stdout.trim()));
+      } catch {
+        reject(new Error(`Failed to parse result: ${stdout.slice(0, 200)}`));
+      }
+    });
+
+    proc.on("error", (err) => {
+      clearInterval(timer);
+      reject(err);
+    });
+
+    // AbortSignal support — kill the process immediately
+    if (signal) {
+      const killProc = () => {
+        clearInterval(timer);
+        proc.kill("SIGTERM");
+        setTimeout(() => { if (!proc.killed) proc.kill("SIGKILL"); }, 3000);
+      };
+      if (signal.aborted) killProc();
+      else signal.addEventListener("abort", killProc, { once: true });
     }
-    if (status.status === "failed") {
-      throw new Error(`Enrich failed: ${status.error || "unknown error"}`);
-    }
-  }
+  });
 }

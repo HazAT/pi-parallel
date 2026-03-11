@@ -296,7 +296,7 @@ export function renderResearchResult(
 
   // Streaming/running state
   if (details?.status === "running") {
-    const elapsed = details.elapsed ? ` · ${details.elapsed}s` : "";
+    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
     const processor = details.processor ? ` · ${details.processor}` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
@@ -391,7 +391,7 @@ export function renderEnrichResult(
 
   // Streaming/running state
   if (details?.status === "running") {
-    const elapsed = details.elapsed ? ` · ${details.elapsed}s` : "";
+    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
     const count =
       Array.isArray((details as any).items) ? ` · ${(details as any).items.length} items` : "";
     return new Text(
