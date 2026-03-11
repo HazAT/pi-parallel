@@ -6,7 +6,7 @@ import { enrichTool } from "./tools/enrich.js";
 import { runCli } from "./cli.js";
 import { execSync } from "node:child_process";
 
-export function activate(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   pi.registerTool(searchTool);
   pi.registerTool(extractTool);
   pi.registerTool(researchTool);
