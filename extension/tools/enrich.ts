@@ -29,14 +29,19 @@ export const enrichTool = {
     })),
   }),
   async execute(_toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, _ctx: any) {
-    const tmpFile = path.join(os.tmpdir(), `parallel-enrich-${Date.now()}.json`);
+    const dataFile = path.join(os.tmpdir(), `parallel-enrich-data-${Date.now()}.json`);
+    const tmpFile = path.join(os.tmpdir(), `parallel-enrich-target-${Date.now()}.json`);
     try {
       const dataJson = typeof params.data === "string" ? params.data : JSON.stringify(params.data);
       const numItems = Array.isArray(params.data) ? params.data.length : "?";
 
+      // Write data to temp file to avoid OS arg length limits with large datasets
+      fs.writeFileSync(dataFile, dataJson, "utf-8");
+
       const args = [
         "enrich", "run",
-        "--data", dataJson,
+        "--source-type", "json",
+        "--source", dataFile,
         "--intent", params.instructions,
         "--target", tmpFile,
         "--no-wait", "--json",
@@ -45,8 +50,6 @@ export const enrichTool = {
       if (params.speed === "best") args.push("--processor", "ultra");
 
       const runResult: EnrichRunResult = await runCli(args);
-
-      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
 
       const { taskgroup_id, num_runs } = runResult;
       onUpdate({
@@ -66,8 +69,10 @@ export const enrichTool = {
         details: { items, taskgroup_id, instructions: params.instructions },
       };
     } catch (err: any) {
-      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
       return { content: [{ type: "text" as const, text: err.message }], details: {}, isError: true };
+    } finally {
+      try { fs.unlinkSync(dataFile); } catch { /* ignore */ }
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     }
   },
   renderCall: renderEnrichCall,

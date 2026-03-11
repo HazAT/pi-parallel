@@ -64,6 +64,17 @@ export type EnrichItem = {
 
 export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+async function sleepOrAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error("Aborted")); return; }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new Error("Aborted"));
+    }, { once: true });
+  });
+}
+
 export function formatElapsed(startTime: number): string {
   const elapsed = Math.round((Date.now() - startTime) / 1000);
   if (elapsed < 60) return `${elapsed}s`;
@@ -128,9 +139,7 @@ export async function pollResearch(
   startTime: number
 ): Promise<ResearchResult> {
   while (true) {
-    if (signal?.aborted) throw new Error("Aborted");
-    await sleep(10_000);
-    if (signal?.aborted) throw new Error("Aborted");
+    await sleepOrAbort(10_000, signal);
 
     const status = await runCli(["research", "status", runId, "--json"]);
     const elapsed = formatElapsed(startTime);
@@ -156,9 +165,7 @@ export async function pollEnrich(
   startTime: number
 ): Promise<EnrichItem[]> {
   while (true) {
-    if (signal?.aborted) throw new Error("Aborted");
-    await sleep(5_000);
-    if (signal?.aborted) throw new Error("Aborted");
+    await sleepOrAbort(5_000, signal);
 
     const status = await runCli(["enrich", "status", taskgroupId, "--json"]);
     const elapsed = formatElapsed(startTime);
