@@ -100,7 +100,15 @@ export function runCli(args: string[]): Promise<any> {
 
     proc.on("close", (code: number | null) => {
       if (code !== 0) {
-        reject(new Error(stderr || `parallel-cli exited with code ${code}`));
+        // Try to extract error message from stdout JSON (parallel-cli sometimes returns errors on stdout)
+        let errorMsg = stderr;
+        if (!errorMsg && stdout) {
+          try {
+            const parsed = JSON.parse(stdout.trim());
+            if (parsed?.error?.message) errorMsg = parsed.error.message;
+          } catch { /* not JSON, fall through */ }
+        }
+        reject(new Error(errorMsg || `parallel-cli exited with code ${code}`));
         return;
       }
       // Strip INFO log lines — enrich mixes "2026-03-11 21:53:22,130 - INFO - ..." with JSON
