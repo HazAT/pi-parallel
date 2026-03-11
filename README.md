@@ -23,17 +23,13 @@ parallel-cli login
 ### 2. Install the extension
 
 ```bash
-git clone https://github.com/haza/pi-parallel ~/.pi/agent/extensions/pi-parallel
+pi install https://github.com/HazAT/pi-parallel
 ```
 
-Add to `~/.pi/settings.json` (create the file if it doesn't exist):
+Or manually:
 
-```json
-{
-  "extensions": [
-    "~/.pi/agent/extensions/pi-parallel"
-  ]
-}
+```bash
+git clone https://github.com/HazAT/pi-parallel ~/.pi/agent/extensions/pi-parallel
 ```
 
 ### 3. Verify
