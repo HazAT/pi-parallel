@@ -23,7 +23,7 @@ parallel-cli login
 ### 2. Install the extension
 
 ```bash
-pi install https://github.com/HazAT/pi-parallel
+pi install git:github.com/HazAT/pi-parallel
 ```
 
 Or manually:
