@@ -30,19 +30,14 @@ export const enrichTool = {
     })),
   }),
   async execute(_toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, _ctx: any) {
-    const dataFile = path.join(os.tmpdir(), `parallel-enrich-data-${Date.now()}.json`);
     const tmpFile = path.join(os.tmpdir(), `parallel-enrich-target-${Date.now()}.json`);
     try {
       const dataJson = typeof params.data === "string" ? params.data : JSON.stringify(params.data);
       const numItems = Array.isArray(params.data) ? params.data.length : "?";
 
-      // Write data to temp file to avoid OS arg length limits with large datasets
-      fs.writeFileSync(dataFile, dataJson, "utf-8");
-
       const args = [
         "enrich", "run",
-        "--source-type", "json",
-        "--source", dataFile,
+        "--data", dataJson,
         "--intent", params.instructions,
         "--target", tmpFile,
         "--no-wait", "--json",
@@ -74,7 +69,6 @@ export const enrichTool = {
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: err.message }], details: {}, isError: true };
     } finally {
-      try { fs.unlinkSync(dataFile); } catch { /* ignore */ }
       try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     }
   },
