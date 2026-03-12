@@ -6,14 +6,15 @@ import { renderSearchCall, renderSearchResult } from "../render.js";
 export const searchTool = {
   name: "parallel_search",
   label: "Parallel Search",
-  description: "Search the web using parallel.ai's AI-powered search",
-  promptSnippet: "Use parallel_search for web searches and looking up current information",
+  description: "Search the public web for external information using parallel.ai's AI-powered search",
+  promptSnippet: "Use parallel_search for searching the public web — NOT for fetching known URLs (use curl/bash for those)",
   promptGuidelines: [
     "Call this tool directly as parallel_search({...}) — do NOT route through the mcp() tool",
-    "Use for quick web searches: 'what is X', 'latest news on Y', 'how does Z work'",
+    "Use for searching the public web: 'what is X', 'latest news on Y', 'how does Z work'",
+    "Do NOT use when you already have a specific URL to fetch — use curl or bash instead (e.g. raw GitHub URLs, API endpoints, localhost)",
     "Use parallel_research instead for deep open-ended questions requiring synthesis across many sources",
     "afterDate param is useful for finding recent events or news (format: YYYY-MM-DD)",
-    "Returns excerpts from web pages — use parallel_extract if you need full page content from a specific URL",
+    "Returns excerpts from web pages — use parallel_extract only if you need to extract content from an external website the user wants to read",
   ],
   parameters: Type.Object({
     query: Type.String({ description: "Natural language search objective or keyword query" }),
