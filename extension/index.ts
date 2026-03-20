@@ -21,7 +21,7 @@ export default function (pi: ExtensionAPI) {
         version = execSync("parallel-cli --version", { encoding: "utf-8" }).trim();
       } catch {
         ctx.ui.notify(
-          "✗ parallel-cli not found\n\nInstall it:\n  npm install -g @parallel-web/cli\n\nThen authenticate:\n  parallel-cli login",
+          "✗ parallel-cli not found\n\nInstall it:\n  npm install -g parallel-web-cli\n\nThen authenticate:\n  parallel-cli login",
           "error"
         );
         return;
