@@ -20,10 +20,7 @@ export const enrichTool = {
     "Results are returned as [{input: {...}, output: {...}}] where output contains the enriched fields",
   ],
   parameters: Type.Object({
-    data: Type.Union([
-      Type.Array(Type.Record(Type.String(), Type.Any()), { description: "Array of objects to enrich" }),
-      Type.String({ description: "CSV string to enrich" }),
-    ], { description: "Data to enrich: array of objects or CSV string" }),
+    data: Type.Any({ description: "Data to enrich: array of objects (e.g. [{company: 'Anthropic'}]) or CSV string" }),
     instructions: Type.String({ description: "What data to add, e.g. 'Find the CEO and founding year'" }),
     speed: Type.Optional(StringEnum(["fast", "balanced", "best"] as const, {
       description: "Processing depth (default: fast)",

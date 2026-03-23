@@ -17,10 +17,7 @@ export const extractTool = {
     "Do NOT use for general searches — use parallel_search when you don't have a specific URL",
   ],
   parameters: Type.Object({
-    url: Type.Union([
-      Type.String({ description: "URL to extract content from" }),
-      Type.Array(Type.String(), { description: "Multiple URLs to extract" }),
-    ], { description: "URL or array of URLs to extract content from" }),
+    url: Type.Any({ description: "URL or array of URLs to extract content from" }),
     objective: Type.Optional(Type.String({ description: "Focus extraction on a specific goal (e.g. 'pricing information', 'API docs')" })),
   }),
   async execute(_toolCallId: string, params: any, _signal: AbortSignal | undefined, _onUpdate: any, _ctx: any) {
