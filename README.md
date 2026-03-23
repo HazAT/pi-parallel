@@ -16,7 +16,7 @@ A [pi](https://github.com/badlogic/pi-mono) extension that gives your agent web 
 Sign up at [parallel.ai](https://parallel.ai), then install and authenticate the CLI:
 
 ```bash
-npm install -g @parallel-web/cli
+npm install -g parallel-web-cli
 parallel-cli login
 ```
 
