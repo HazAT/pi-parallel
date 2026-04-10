@@ -12,23 +12,22 @@ const SPEED_TO_PROCESSOR: Record<string, string> = {
 export const researchTool = {
   name: "parallel_research",
   label: "Parallel Research",
-  description: "Run deep async research on a topic using parallel.ai — synthesizes information across many sources",
-  promptSnippet: "Use parallel_research for deep open-ended questions requiring synthesis. Runs asynchronously — fast is the right default, only use best for truly deep dives.",
+  description: "Run an asynchronous deep-research job on a topic using parallel.ai, which searches the web, reads multiple sources, and synthesizes findings into a structured markdown report with cited sources. Unlike parallel_search (which returns a list of pages), this tool reads and reasons across many sources to produce a cohesive answer. The tool starts a research job, polls for completion automatically, and returns the full synthesized report with source citations. Use this for open-ended questions that require cross-source synthesis: 'what are the tradeoffs of X vs Y', 'current state of Z', 'comprehensive overview of W'. Use parallel_search instead for quick factual lookups or when you just need to find a specific page. The speed parameter controls depth: fast (default) is cheap and usually sufficient, best produces a thorough report but takes significantly longer.",
+  promptSnippet: "Deep async research that synthesizes across many sources into a cited report. Use fast (default) for most questions, best for comprehensive reports.",
   promptGuidelines: [
     "Call this tool directly as parallel_research({...}) — do NOT route through the mcp() tool",
-    "Use for deep research: 'explain the current state of X', 'what are the tradeoffs of Y', 'comprehensive overview of Z'",
+    "Use for synthesis questions: 'explain the current state of X', 'tradeoffs of Y vs Z', 'comprehensive overview of W'",
     "Use parallel_search instead for quick factual lookups or finding specific pages",
-    "speed=fast (default) is the right choice for almost everything — quick and cheap",
+    "speed=fast (default) is right for almost everything — quick, cheap, good enough",
     "speed=best only when the user explicitly needs maximum depth or a comprehensive report",
-    "speed=balanced is rarely needed — go fast or go best",
-    "The tool polls automatically — you don't need to check status separately",
+    "The tool polls automatically and streams progress updates — no manual status checks needed",
   ],
   parameters: Type.Object({
-    topic: Type.String({ description: "Research question or topic" }),
+    topic: Type.String({ description: "The research question or topic to investigate. Be specific — 'what are the performance tradeoffs of SQLite vs PostgreSQL for read-heavy web apps' yields better results than just 'SQLite vs PostgreSQL'. The more focused the question, the more relevant the synthesis." }),
     speed: Type.Optional(StringEnum(["fast", "balanced", "best"] as const, {
-      description: "fast (default, right for most questions), best (deep comprehensive report, significantly slower). balanced is rarely needed.",
+      description: "Controls research depth and cost. 'fast' (default): quick synthesis, usually 15-30s, sufficient for most questions. 'best': thorough multi-source report, can take 1-3 minutes, use only when comprehensive depth is needed. 'balanced': middle ground, rarely the right choice — prefer fast or best.",
     })),
-    context: Type.Optional(Type.String({ description: "Additional context or constraints for the research" })),
+    context: Type.Optional(Type.String({ description: "Additional context prepended to the topic to constrain or focus the research. For example, 'We are building a TypeScript CLI tool' helps the researcher tailor findings to your specific situation." })),
   }),
   async execute(_toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, _ctx: any) {
     try {
@@ -52,7 +51,14 @@ export const researchTool = {
 
       return {
         content: [{ type: "text" as const, text }],
-        details: { ...result, processor, query: params.topic, elapsed },
+        details: {
+          run_id: result.run_id,
+          status: result.status,
+          output: result.output,
+          processor,
+          query: params.topic,
+          elapsed,
+        },
       };
     } catch (err: any) {
       return { content: [{ type: "text" as const, text: err.message }], details: {}, isError: true };
