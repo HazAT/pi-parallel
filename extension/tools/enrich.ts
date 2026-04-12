@@ -6,6 +6,12 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { runCli, pollEnrich, type EnrichRunResult } from "../cli.js";
 import { renderEnrichCall, renderEnrichResult } from "../render.js";
 
+const SPEED_TO_PROCESSOR: Record<string, string> = {
+  fast: "base-fast",
+  balanced: "pro-fast",
+  best: "ultra",
+};
+
 export const enrichTool = {
   name: "parallel_enrich",
   label: "Parallel Enrich",
@@ -37,17 +43,16 @@ export const enrichTool = {
         "--data", dataJson,
         "--intent", params.instructions,
         "--target", tmpFile,
+        "--processor", SPEED_TO_PROCESSOR[params.speed ?? "fast"] ?? "base-fast",
         "--no-wait", "--json",
       ];
-      if (params.speed === "balanced") args.push("--processor", "ultra-fast");
-      if (params.speed === "best") args.push("--processor", "ultra");
 
       const runResult: EnrichRunResult = await runCli(args);
 
       const { taskgroup_id, num_runs } = runResult;
       onUpdate({
         content: [{ type: "text" as const, text: `📊 Enrichment started · ${num_runs} items · ${taskgroup_id}` }],
-        details: { status: "running", taskgroup_id, num_runs },
+        details: { status: "running", taskgroup_id, num_runs, poll_interval_seconds: 15 },
       });
 
       const startTime = Date.now();

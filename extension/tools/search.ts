@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { runCli, type SearchResult } from "../cli.js";
+import { runCliWithHeartbeat, type SearchResult } from "../cli.js";
 import { renderSearchCall, renderSearchResult } from "../render.js";
 
 export const searchTool = {
@@ -20,11 +20,32 @@ export const searchTool = {
     maxResults: Type.Optional(Type.Number({ description: "Maximum number of results to return. Defaults to 10. Lower values (3-5) are faster for quick lookups; higher values (15-20) are better when you need breadth." })),
     afterDate: Type.Optional(Type.String({ description: "Filter to results published after this date in YYYY-MM-DD format. Useful for finding recent releases, news, or ensuring up-to-date information." })),
   }),
-  async execute(_toolCallId: string, params: any, _signal: AbortSignal | undefined, _onUpdate: any, _ctx: any) {
+  async execute(_toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, _ctx: any) {
     try {
       const args = ["search", params.query, "--max-results", String(params.maxResults ?? 10), "--json"];
       if (params.afterDate) args.push("--after-date", params.afterDate);
-      const result: SearchResult = await runCli(args);
+
+      const startTime = Date.now();
+      onUpdate?.({
+        content: [{ type: "text" as const, text: `🔎 Search started · \"${params.query}\"` }],
+        details: { status: "running", query: params.query, maxResults: params.maxResults ?? 10 },
+      });
+
+      const result: SearchResult = await runCliWithHeartbeat(
+        args,
+        signal,
+        onUpdate,
+        startTime,
+        (elapsed) => ({
+          content: [{ type: "text" as const, text: `🔎 Searching the web · ${params.query}` }],
+          details: {
+            status: "running",
+            query: params.query,
+            maxResults: params.maxResults ?? 10,
+            elapsed,
+          },
+        }),
+      );
       const count = result.results?.length ?? 0;
       const summary = result.results?.slice(0, 3).map((r, i) =>
         `${i + 1}. **${r.title}**\n   ${r.url}\n   ${r.excerpts?.[0]?.slice(0, 150) ?? ""}`

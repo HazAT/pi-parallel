@@ -4,8 +4,8 @@ import { runCli, pollResearch, type ResearchRunResult } from "../cli.js";
 import { renderResearchCall, renderResearchResult, formatResearchContent } from "../render.js";
 
 const SPEED_TO_PROCESSOR: Record<string, string> = {
-  fast: "pro-fast",
-  balanced: "ultra-fast",
+  fast: "base-fast",
+  balanced: "pro-fast",
   best: "ultra",
 };
 
@@ -18,6 +18,7 @@ export const researchTool = {
     "Call this tool directly as parallel_research({...}) — do NOT route through the mcp() tool",
     "Use for synthesis questions: 'explain the current state of X', 'tradeoffs of Y vs Z', 'comprehensive overview of W'",
     "Use parallel_search instead for quick factual lookups or finding specific pages",
+    "Do not fan out multiple parallel_research calls for sub-questions unless the user explicitly asked for that cost/depth — prefer a few searches or one synthesis run",
     "speed=fast (default) is right for almost everything — quick, cheap, good enough",
     "speed=best only when the user explicitly needs maximum depth or a comprehensive report",
     "The tool polls automatically and streams progress updates — no manual status checks needed",
@@ -42,7 +43,7 @@ export const researchTool = {
       const startTime = Date.now();
       onUpdate({
         content: [{ type: "text" as const, text: `🔍 Research started · ${run_id} · ${processor}` }],
-        details: { status: "running", run_id, processor },
+        details: { status: "running", run_id, processor, poll_interval_seconds: 45 },
       });
 
       const result = await pollResearch(run_id, signal, onUpdate, startTime);

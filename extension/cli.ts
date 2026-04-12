@@ -62,6 +62,10 @@ export type EnrichItem = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const HEARTBEAT_MS = 10_000;
+const RESEARCH_POLL_INTERVAL_SECS = 45;
+const ENRICH_POLL_INTERVAL_SECS = 15;
+
 export function formatElapsed(startTime: number): string {
   const elapsed = Math.round((Date.now() - startTime) / 1000);
   if (elapsed < 60) return `${elapsed}s`;
@@ -127,6 +131,19 @@ type OnUpdateCallback = (partial: {
   details: any;
 }) => void;
 
+export function runCliWithHeartbeat(
+  args: string[],
+  signal: AbortSignal | undefined,
+  onUpdate: OnUpdateCallback | undefined,
+  startTime: number,
+  getUpdate: (elapsedSecs: number) => {
+    content: Array<{ type: "text"; text: string }>;
+    details: any;
+  },
+): Promise<any> {
+  return runCliWithProgress(args, signal, (elapsed) => onUpdate?.(getUpdate(elapsed)), startTime);
+}
+
 /**
  * Delegates polling to `parallel-cli research poll` which handles its own
  * status checks internally (default: every 45s). A setInterval ticks the
@@ -140,12 +157,22 @@ export function pollResearch(
   startTime: number,
 ): Promise<ResearchResult> {
   return runCliWithProgress(
-    ["research", "poll", runId, "--timeout", "540", "--json"],
+    [
+      "research", "poll", runId,
+      "--timeout", "540",
+      "--poll-interval", String(RESEARCH_POLL_INTERVAL_SECS),
+      "--json",
+    ],
     signal,
     (elapsed) =>
       onUpdate({
         content: [{ type: "text", text: `⏳ Research running · ${formatElapsed(startTime)} · polling` }],
-        details: { status: "running", run_id: runId, elapsed },
+        details: {
+          status: "running",
+          run_id: runId,
+          elapsed,
+          poll_interval_seconds: RESEARCH_POLL_INTERVAL_SECS,
+        },
       }),
     startTime,
   ) as Promise<ResearchResult>;
@@ -161,12 +188,22 @@ export function pollEnrich(
   startTime: number,
 ): Promise<EnrichItem[]> {
   return runCliWithProgress(
-    ["enrich", "poll", taskgroupId, "--timeout", "540", "--json"],
+    [
+      "enrich", "poll", taskgroupId,
+      "--timeout", "540",
+      "--poll-interval", String(ENRICH_POLL_INTERVAL_SECS),
+      "--json",
+    ],
     signal,
     (elapsed) =>
       onUpdate({
         content: [{ type: "text", text: `⏳ Enrich running · ${formatElapsed(startTime)} · polling` }],
-        details: { status: "running", taskgroup_id: taskgroupId, elapsed },
+        details: {
+          status: "running",
+          taskgroup_id: taskgroupId,
+          elapsed,
+          poll_interval_seconds: ENRICH_POLL_INTERVAL_SECS,
+        },
       }),
     startTime,
   ) as Promise<EnrichItem[]>;
@@ -174,8 +211,8 @@ export function pollEnrich(
 
 /**
  * Spawn a long-running parallel-cli command with a progress ticker.
- * The CLI does its own polling internally; we just tick the elapsed timer
- * every 5s so the TUI stays alive.
+ * The CLI does its own work internally; we just emit a heartbeat every 10s
+ * so the TUI stays alive without extra API calls.
  */
 function runCliWithProgress(
   args: string[],
@@ -195,11 +232,11 @@ function runCliWithProgress(
     proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
     proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
 
-    // Tick elapsed every 5s for TUI progress
+    // Tick elapsed every 10s for TUI progress without extra API calls
     const timer = setInterval(() => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       tick(elapsed);
-    }, 5_000);
+    }, HEARTBEAT_MS);
 
     proc.on("close", (code: number | null) => {
       clearInterval(timer);

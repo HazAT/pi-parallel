@@ -83,7 +83,19 @@ export function renderSearchResult(
   { expanded }: { expanded: boolean },
   theme: any,
 ): any {
-  const details = result.details as (SearchResult & { query?: string }) | undefined;
+  const details = result.details as (SearchResult & { query?: string; elapsed?: number; maxResults?: number }) | undefined;
+
+  if (details?.status === "running") {
+    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
+    const query = details.query ? ` · \"${details.query.length > 40 ? details.query.slice(0, 40) + "…" : details.query}\"` : "";
+    return new Text(
+      theme.fg("warning", "⏳ ") +
+        theme.fg("toolTitle", theme.bold("parallel_search")) +
+        theme.fg("muted", ` · running${elapsed}${query}`),
+      0,
+      0,
+    );
+  }
 
   if (result.isError || !details || details.status !== "ok") {
     const errMsg =
@@ -164,7 +176,19 @@ export function renderExtractResult(
   { expanded }: { expanded: boolean },
   theme: any,
 ): any {
-  const details = result.details as ExtractResult | undefined;
+  const details = result.details as (ExtractResult & { elapsed?: number; urls?: string[] }) | undefined;
+
+  if (details?.status === "running") {
+    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
+    const urlCount = Array.isArray((details as any).urls) ? ` · ${(details as any).urls.length} URL${(details as any).urls.length !== 1 ? "s" : ""}` : "";
+    return new Text(
+      theme.fg("warning", "⏳ ") +
+        theme.fg("toolTitle", theme.bold("parallel_extract")) +
+        theme.fg("muted", ` · running${elapsed}${urlCount}`),
+      0,
+      0,
+    );
+  }
 
   if (result.isError || !details || details.status !== "ok") {
     const errMsg =
@@ -298,10 +322,11 @@ export function renderResearchResult(
   if (details?.status === "running") {
     const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
     const processor = details.processor ? ` · ${details.processor}` : "";
+    const cadence = (details as any).poll_interval_seconds ? ` · checks every ${(details as any).poll_interval_seconds}s` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
         theme.fg("toolTitle", theme.bold("parallel_research")) +
-        theme.fg("muted", ` · running${elapsed}${processor}`),
+        theme.fg("muted", ` · running${elapsed}${processor}${cadence}`),
       0,
       0,
     );
@@ -394,10 +419,11 @@ export function renderEnrichResult(
     const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
     const count =
       Array.isArray((details as any).items) ? ` · ${(details as any).items.length} items` : "";
+    const cadence = (details as any).poll_interval_seconds ? ` · checks every ${(details as any).poll_interval_seconds}s` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
         theme.fg("toolTitle", theme.bold("parallel_enrich")) +
-        theme.fg("muted", `${count} · running${elapsed}`),
+        theme.fg("muted", `${count} · running${elapsed}${cadence}`),
       0,
       0,
     );
