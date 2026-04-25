@@ -1,0 +1,10 @@
+{
+  "packages": [
+    {
+      "source": "git:github.com/HazAT/pi-parallel",
+      "extensions": [],
+      "skills": []
+    }
+  ],
+  "extensions": ["../extension/index.ts"]
+}

@@ -3,4 +3,6 @@ node_modules/
 *.js
 /tmp
 context.md
-.pi/
+.pi/*
+!.pi/skills/
+!.pi/settings.json
