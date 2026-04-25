@@ -13,16 +13,16 @@ const SPEED_TO_PROCESSOR: Record<string, string> = {
 };
 
 export const enrichTool = {
-  name: "parallel_enrich",
-  label: "Parallel Enrich",
-  description: "Batch-enrich a list of structured entities (companies, people, domains, products, etc.) by looking up web-sourced information for each item in parallel using parallel.ai. Takes an array of objects (or CSV string) as input data and natural language instructions describing what to find, then returns each input row augmented with the requested fields. For example, given [{company: 'Anthropic'}, {company: 'OpenAI'}] with instructions 'Find the CEO and founding year', returns [{input: {company: 'Anthropic'}, output: {ceo: 'Dario Amodei', founding_year: 2021}}, ...]. The tool runs asynchronously, polling for completion automatically. Use this for batch data augmentation tasks — not for general web searches (use parallel_search) or single-entity lookups (use parallel_search or parallel_research instead).",
-  promptSnippet: "Batch-enrich a list of entities (companies, people, domains) with web-sourced data. Not for single lookups (use parallel_search).",
+  name: "batch_enrich",
+  label: "Batch Enrich",
+  description: "Batch-enrich a list of structured entities (companies, people, domains, products, etc.) by looking up web-sourced information for each item concurrently using parallel.ai. Takes an array of objects (or CSV string) as input data and natural language instructions describing what to find, then returns each input row augmented with the requested fields. For example, given [{company: 'Anthropic'}, {company: 'OpenAI'}] with instructions 'Find the CEO and founding year', returns [{input: {company: 'Anthropic'}, output: {ceo: 'Dario Amodei', founding_year: 2021}}, ...]. The tool runs asynchronously, polling for completion automatically. Use this for batch data augmentation tasks — not for general web searches (use web_search) or single-entity lookups (use web_search or deep_research instead).",
+  promptSnippet: "Batch-enrich a list of entities (companies, people, domains) with web-sourced data. Not for single lookups (use web_search).",
   promptGuidelines: [
-    "Call this tool directly as parallel_enrich({...}) — do NOT route through the mcp() tool",
+    "Call this tool directly as batch_enrich({...}) — do NOT route through the mcp() tool",
     "Use when the user has a list of entities and wants to add the same type of information to each one",
     "data: array of objects with consistent keys, e.g. [{company: 'Anthropic'}, {company: 'OpenAI'}]",
     "instructions: natural language describing what to find, e.g. 'Find the CEO and founding year'",
-    "Use parallel_search for one-off lookups — enrich is for batch augmentation of multiple entities",
+    "Use web_search for one-off lookups — batch_enrich is for batch augmentation of multiple entities",
     "Results: [{input: {...}, output: {...}}] where output contains the enriched fields",
   ],
   parameters: Type.Object({

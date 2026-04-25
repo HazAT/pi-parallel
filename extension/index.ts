@@ -53,10 +53,10 @@ export default function (pi: ExtensionAPI) {
       // 3. Print tool summary
       ctx.ui.notify(
         "Available tools:\n" +
-        "  parallel_search  — web search with excerpts\n" +
-        "  parallel_extract — extract content from URLs\n" +
-        "  parallel_research — deep async AI research\n" +
-        "  parallel_enrich  — batch data enrichment",
+        "  web_search    — web search with excerpts\n" +
+        "  web_fetch     — fetch content from URLs\n" +
+        "  deep_research — deep async AI research\n" +
+        "  batch_enrich  — batch data enrichment",
         "info"
       );
     },

@@ -3,17 +3,17 @@ import { runCliWithHeartbeat, type SearchResult } from "../cli.js";
 import { renderSearchCall, renderSearchResult } from "../render.js";
 
 export const searchTool = {
-  name: "parallel_search",
-  label: "Parallel Search",
-  description: "Search the public web using parallel.ai's AI-powered search engine to find pages, articles, documentation, and other online resources matching a natural language query. Returns a ranked list of results with titles, URLs, publish dates, and relevant text excerpts from each page. Use this when you need to discover information, find specific pages, look up facts, or locate documentation — essentially any time you'd use a search engine. Do NOT use this when you already have a specific URL to fetch (use curl/bash instead), and prefer parallel_research over this tool when the question requires synthesizing information across many sources into a cohesive answer rather than just finding relevant pages.",
-  promptSnippet: "Search the public web for pages, articles, and docs. Not for fetching known URLs (use curl/bash) or deep synthesis (use parallel_research).",
+  name: "web_search",
+  label: "Web Search",
+  description: "Search the public web using parallel.ai's AI-powered search engine to find pages, articles, documentation, and other online resources matching a natural language query. Returns a ranked list of results with titles, URLs, publish dates, and relevant text excerpts from each page. Use this when you need to discover information, find specific pages, look up facts, or locate documentation — essentially any time you'd use a search engine. Do NOT use this when you already have a specific URL to fetch (use curl/bash instead), and prefer deep_research over this tool when the question requires synthesizing information across many sources into a cohesive answer rather than just finding relevant pages.",
+  promptSnippet: "Search the public web for pages, articles, and docs. Not for fetching known URLs (use curl/bash) or deep synthesis (use deep_research).",
   promptGuidelines: [
-    "Call this tool directly as parallel_search({...}) — do NOT route through the mcp() tool",
+    "Call this tool directly as web_search({...}) — do NOT route through the mcp() tool",
     "Use for web discovery: 'what is X', 'latest news on Y', 'find docs for Z', 'how does W work'",
     "Do NOT use when you already have a specific URL — use curl or bash instead (raw GitHub URLs, API endpoints, localhost)",
-    "Use parallel_research instead when the answer requires synthesis across many sources, not just finding pages",
+    "Use deep_research instead when the answer requires synthesis across many sources, not just finding pages",
     "Use afterDate to scope results to recent content (e.g. news, releases, changelogs)",
-    "Returns excerpts — if you need the full content of a found page, follow up with parallel_extract",
+    "Returns excerpts — if you need the full content of a found page, follow up with web_fetch",
   ],
   parameters: Type.Object({
     query: Type.String({ description: "The search query — can be natural language ('how to deploy Next.js on Vercel') or keywords ('Next.js Vercel deployment guide'). More specific queries yield more relevant results." }),

@@ -4,10 +4,10 @@ A [pi](https://github.com/badlogic/pi-mono) extension that gives your agent web 
 
 | Tool | Use case |
 |------|----------|
-| `parallel_search` | Quick web lookups — "what is X", "latest news on Y" |
-| `parallel_extract` | Pull clean markdown from a URL |
-| `parallel_research` | Deep async research across many sources (2–10 min) |
-| `parallel_enrich` | Augment a list of companies/people/domains with web data |
+| `web_search` | Quick web lookups — "what is X", "latest news on Y" |
+| `web_fetch` | Pull clean markdown from a URL |
+| `deep_research` | Deep async research across many sources (2–10 min) |
+| `batch_enrich` | Augment a list of companies/people/domains with web data |
 
 ## Setup
 

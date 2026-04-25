@@ -22,7 +22,7 @@ export function renderSearchCall(args: any, theme: any): any {
   const preview = query.length > 60 ? `${query.slice(0, 60)}...` : query;
   return new Text(
     theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("parallel_search ")) +
+      theme.fg("toolTitle", theme.bold("web_search ")) +
       theme.fg("accent", `"${preview}"`),
     0,
     0,
@@ -41,7 +41,7 @@ export function renderExtractCall(args: any, theme: any): any {
       : `${urls.length} URLs`;
   return new Text(
     theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("parallel_extract ")) +
+      theme.fg("toolTitle", theme.bold("web_fetch ")) +
       theme.fg("accent", urlText),
     0,
     0,
@@ -54,7 +54,7 @@ export function renderResearchCall(args: any, theme: any): any {
   const speed = args.speed || "fast";
   return new Text(
     theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("parallel_research ")) +
+      theme.fg("toolTitle", theme.bold("deep_research ")) +
       theme.fg("accent", `"${preview}"`) +
       theme.fg("dim", ` · ${speed}`),
     0,
@@ -68,7 +68,7 @@ export function renderEnrichCall(args: any, theme: any): any {
   const preview = intent.length > 50 ? `${intent.slice(0, 50)}...` : intent;
   return new Text(
     theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("parallel_enrich ")) +
+      theme.fg("toolTitle", theme.bold("batch_enrich ")) +
       theme.fg("accent", `${data.length} items`) +
       theme.fg("dim", ` · "${preview}"`),
     0,
@@ -90,7 +90,7 @@ export function renderSearchResult(
     const query = details.query ? ` · \"${details.query.length > 40 ? details.query.slice(0, 40) + "…" : details.query}\"` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("parallel_search")) +
+        theme.fg("toolTitle", theme.bold("web_search")) +
         theme.fg("muted", ` · running${elapsed}${query}`),
       0,
       0,
@@ -104,7 +104,7 @@ export function renderSearchResult(
       "unknown error";
     return new Text(
       theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("parallel_search")) +
+        theme.fg("toolTitle", theme.bold("web_search")) +
         theme.fg("error", ` · ${errMsg}`),
       0,
       0,
@@ -120,7 +120,7 @@ export function renderSearchResult(
     container.addChild(
       new Text(
         theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("parallel_search")) +
+          theme.fg("toolTitle", theme.bold("web_search")) +
           theme.fg("muted", ` · ${items.length} results${queryText}`),
         0,
         0,
@@ -148,7 +148,7 @@ export function renderSearchResult(
   // Collapsed
   let text =
     theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("parallel_search")) +
+    theme.fg("toolTitle", theme.bold("web_search")) +
     theme.fg("muted", ` · ${items.length} results${queryText}`);
 
   for (const item of items.slice(0, 3)) {
@@ -183,7 +183,7 @@ export function renderExtractResult(
     const urlCount = Array.isArray((details as any).urls) ? ` · ${(details as any).urls.length} URL${(details as any).urls.length !== 1 ? "s" : ""}` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("parallel_extract")) +
+        theme.fg("toolTitle", theme.bold("web_fetch")) +
         theme.fg("muted", ` · running${elapsed}${urlCount}`),
       0,
       0,
@@ -195,7 +195,7 @@ export function renderExtractResult(
       result.content?.[0]?.text || "unknown error";
     return new Text(
       theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("parallel_extract")) +
+        theme.fg("toolTitle", theme.bold("web_fetch")) +
         theme.fg("error", ` · ${errMsg}`),
       0,
       0,
@@ -210,7 +210,7 @@ export function renderExtractResult(
     container.addChild(
       new Text(
         theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("parallel_extract")) +
+          theme.fg("toolTitle", theme.bold("web_fetch")) +
           theme.fg("muted", ` · ${items.length} URL${items.length !== 1 ? "s" : ""}`),
         0,
         0,
@@ -250,7 +250,7 @@ export function renderExtractResult(
 
   const text =
     theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("parallel_extract")) +
+    theme.fg("toolTitle", theme.bold("web_fetch")) +
     theme.fg("muted", ` · ${items.length} URL${items.length !== 1 ? "s" : ""}${titleInfo}`) +
     theme.fg("dim", `${wordInfo}\n(Ctrl+O to expand)`);
   return new Text(text, 0, 0);
@@ -325,7 +325,7 @@ export function renderResearchResult(
     const cadence = (details as any).poll_interval_seconds ? ` · checks every ${(details as any).poll_interval_seconds}s` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("parallel_research")) +
+        theme.fg("toolTitle", theme.bold("deep_research")) +
         theme.fg("muted", ` · running${elapsed}${processor}${cadence}`),
       0,
       0,
@@ -336,7 +336,7 @@ export function renderResearchResult(
     const errMsg = result.content?.[0]?.text || "unknown error";
     return new Text(
       theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("parallel_research")) +
+        theme.fg("toolTitle", theme.bold("deep_research")) +
         theme.fg("error", ` · ${errMsg}`),
       0,
       0,
@@ -367,7 +367,7 @@ export function renderResearchResult(
     container.addChild(
       new Text(
         theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("parallel_research")) +
+          theme.fg("toolTitle", theme.bold("deep_research")) +
           theme.fg("muted", ` · ${metaStr}`),
         0,
         0,
@@ -396,7 +396,7 @@ export function renderResearchResult(
 
   let text =
     theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("parallel_research")) +
+    theme.fg("toolTitle", theme.bold("deep_research")) +
     theme.fg("muted", ` · ${metaStr}`);
   if (snippet) {
     text += "\n" + theme.fg("dim", snippet);
@@ -422,7 +422,7 @@ export function renderEnrichResult(
     const cadence = (details as any).poll_interval_seconds ? ` · checks every ${(details as any).poll_interval_seconds}s` : "";
     return new Text(
       theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("parallel_enrich")) +
+        theme.fg("toolTitle", theme.bold("batch_enrich")) +
         theme.fg("muted", `${count} · running${elapsed}${cadence}`),
       0,
       0,
@@ -433,7 +433,7 @@ export function renderEnrichResult(
     const errMsg = result.content?.[0]?.text || "unknown error";
     return new Text(
       theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("parallel_enrich")) +
+        theme.fg("toolTitle", theme.bold("batch_enrich")) +
         theme.fg("error", ` · ${errMsg}`),
       0,
       0,
@@ -452,7 +452,7 @@ export function renderEnrichResult(
     container.addChild(
       new Text(
         theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("parallel_enrich")) +
+          theme.fg("toolTitle", theme.bold("batch_enrich")) +
           theme.fg("muted", ` · ${enrichMeta}`),
         0,
         0,
@@ -480,7 +480,7 @@ export function renderEnrichResult(
   // Collapsed — show first 3 rows as input → output
   let text =
     theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("parallel_enrich")) +
+    theme.fg("toolTitle", theme.bold("batch_enrich")) +
     theme.fg("muted", ` · ${enrichMeta}`);
 
   for (const item of items.slice(0, 3)) {

@@ -3,17 +3,17 @@ import { runCliWithHeartbeat, type ExtractResult } from "../cli.js";
 import { renderExtractCall, renderExtractResult } from "../render.js";
 
 export const extractTool = {
-  name: "parallel_extract",
-  label: "Parallel Extract",
-  description: "Extract and convert the content of one or more public web pages into clean, readable markdown using parallel.ai's content extraction. Handles JavaScript-rendered pages, strips navigation/ads/boilerplate, and returns the meaningful content with titles and text excerpts. Accepts a single URL or an array of URLs for batch extraction. Use this when you have a specific URL (or URLs) and need to read the page content — for example, reading documentation, blog posts, or articles the user shared. Do NOT use for URLs you can fetch directly with curl (raw GitHub files, API endpoints, JSON feeds, localhost) — those don't need content extraction. Do NOT use for general web discovery — use parallel_search when you don't have a URL yet.",
-  promptSnippet: "Extract readable content from public web page URLs. Not for raw/API/localhost URLs (use curl) or general search (use parallel_search).",
+  name: "web_fetch",
+  label: "Web Fetch",
+  description: "Fetch and convert the content of one or more public web pages into clean, readable markdown using parallel.ai's content extraction. Handles JavaScript-rendered pages, strips navigation/ads/boilerplate, and returns the meaningful content with titles and text excerpts. Accepts a single URL or an array of URLs for batch fetching. Use this when you have a specific URL (or URLs) and need to read the page content — for example, reading documentation, blog posts, or articles the user shared. Do NOT use for URLs you can fetch directly with curl (raw GitHub files, API endpoints, JSON feeds, localhost) — those don't need rendering. Do NOT use for general web discovery — use web_search when you don't have a URL yet.",
+  promptSnippet: "Fetch readable content from public web page URLs. Not for raw/API/localhost URLs (use curl) or general search (use web_search).",
   promptGuidelines: [
-    "Call this tool directly as parallel_extract({...}) — do NOT route through the mcp() tool",
+    "Call this tool directly as web_fetch({...}) — do NOT route through the mcp() tool",
     "Use when you have a public web page URL and need its content as clean markdown",
     "Do NOT use for raw file URLs, API endpoints, localhost, or anything curl can fetch directly",
-    "Accepts a single URL string or an array of URLs for batch extraction",
+    "Accepts a single URL string or an array of URLs for batch fetching",
     "Use the objective param to focus extraction (e.g. 'pricing information', 'API reference', 'changelog')",
-    "Do NOT use for general searches — use parallel_search when you don't have a specific URL",
+    "Do NOT use for general searches — use web_search when you don't have a specific URL",
   ],
   parameters: Type.Object({
     url: Type.Any({ description: "One or more public web page URLs to extract content from. Pass a single URL string for one page, or an array of URL strings for batch extraction. Must be publicly accessible web pages — not raw file URLs, API endpoints, or localhost addresses." }),
