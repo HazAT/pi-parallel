@@ -1,8 +1,8 @@
 {
   "name": "pi-parallel",
-  "version": "2.0.0",
-  "description": "Pi extension for parallel.ai web intelligence tools — search, extract, research, enrich",
-  "keywords": ["pi-package", "pi-extension", "parallel", "web-search", "research"],
+  "version": "3.0.0",
+  "description": "Pi extension for parallel.ai web tools — web_search and web_fetch",
+  "keywords": ["pi-package", "pi-extension", "parallel", "web-search", "web-fetch"],
   "license": "MIT",
   "author": "HazAT",
   "homepage": "https://github.com/HazAT/pi-parallel#readme",

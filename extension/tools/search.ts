@@ -5,13 +5,13 @@ import { renderSearchCall, renderSearchResult } from "../render.js";
 export const searchTool = {
   name: "web_search",
   label: "Web Search",
-  description: "Search the public web using parallel.ai's AI-powered search engine to find pages, articles, documentation, and other online resources matching a natural language query. Returns a ranked list of results with titles, URLs, publish dates, and relevant text excerpts from each page. Use this when you need to discover information, find specific pages, look up facts, or locate documentation — essentially any time you'd use a search engine. Do NOT use this when you already have a specific URL to fetch (use curl/bash instead), and prefer deep_research over this tool when the question requires synthesizing information across many sources into a cohesive answer rather than just finding relevant pages.",
-  promptSnippet: "Search the public web for pages, articles, and docs. Not for fetching known URLs (use curl/bash) or deep synthesis (use deep_research).",
+  description: "Search the public web using parallel.ai's AI-powered search engine to find pages, articles, documentation, and other online resources matching a natural language query. Returns a ranked list of results with titles, URLs, publish dates, and relevant text excerpts from each page. Use this when you need to discover information, find specific pages, look up facts, or locate documentation — essentially any time you'd use a search engine. Do NOT use this when you already have a specific URL to fetch (use curl/bash instead). For deeper investigation, follow up promising results with web_fetch to read the full page.",
+  promptSnippet: "Search the public web for pages, articles, and docs. Follow up with web_fetch to read full pages. Not for fetching known URLs (use curl/bash).",
   promptGuidelines: [
     "Call this tool directly as web_search({...}) — do NOT route through the mcp() tool",
     "Use for web discovery: 'what is X', 'latest news on Y', 'find docs for Z', 'how does W work'",
     "Do NOT use when you already have a specific URL — use curl or bash instead (raw GitHub URLs, API endpoints, localhost)",
-    "Use deep_research instead when the answer requires synthesis across many sources, not just finding pages",
+    "For multi-source synthesis questions, do it yourself: web_search to find candidates, then web_fetch the best 2–5 results and reason across them",
     "Use afterDate to scope results to recent content (e.g. news, releases, changelogs)",
     "Returns excerpts — if you need the full content of a found page, follow up with web_fetch",
   ],

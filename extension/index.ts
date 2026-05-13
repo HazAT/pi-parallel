@@ -1,16 +1,12 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { searchTool } from "./tools/search.js";
 import { extractTool } from "./tools/extract.js";
-import { researchTool } from "./tools/research.js";
-import { enrichTool } from "./tools/enrich.js";
 import { runCli } from "./cli.js";
 import { execSync } from "node:child_process";
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool(searchTool);
   pi.registerTool(extractTool);
-  pi.registerTool(researchTool);
-  pi.registerTool(enrichTool);
 
   pi.registerCommand("parallel-setup", {
     description: "Check parallel-cli installation and authentication status",
@@ -53,10 +49,8 @@ export default function (pi: ExtensionAPI) {
       // 3. Print tool summary
       ctx.ui.notify(
         "Available tools:\n" +
-        "  web_search    — web search with excerpts\n" +
-        "  web_fetch     — fetch content from URLs\n" +
-        "  deep_research — deep async AI research\n" +
-        "  batch_enrich  — batch data enrichment",
+        "  web_search — web search with excerpts\n" +
+        "  web_fetch  — fetch content from URLs",
         "info"
       );
     },
