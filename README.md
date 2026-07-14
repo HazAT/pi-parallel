@@ -43,7 +43,7 @@ When a tool is called without authentication, it returns a clear error instructi
 
 ## How it works
 
-- `web_search` sends synchronous `POST /v1/search` requests with ranked, LLM-optimized excerpts.
+- `web_search` sends synchronous `POST /v1/search` requests in low-latency Turbo mode with ranked, LLM-optimized excerpts.
 - `web_fetch` sends synchronous `POST /v1/extract` requests and reports both successful pages and per-URL failures.
 - Requests use the configured key through the `x-api-key` header and support cancellation.
 - Tool output is capped at 50KB or 2,000 lines.

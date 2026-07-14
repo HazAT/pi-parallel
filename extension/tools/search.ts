@@ -93,7 +93,7 @@ export const searchTool = {
       {
         objective: params.query,
         search_queries: params.searchQueries ?? [params.query],
-        mode: "basic",
+        mode: "turbo",
         max_chars_total: 40_000,
         client_model: ctx.model?.id,
         advanced_settings: advancedSettings,
