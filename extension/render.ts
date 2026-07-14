@@ -1,223 +1,160 @@
-import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
+import { getMarkdownTheme, keyHint, type Theme } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
-import type { ExtractResult, SearchResult } from "./cli.js";
+import type { ExtractDetails } from "./tools/extract.js";
+import type { SearchDetails } from "./tools/search.js";
 
-function fmtSecs(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+interface RenderContext {
+  isError?: boolean;
+  lastComponent?: unknown;
 }
 
-// ── renderCall renderers ─────────────────────────────────────────────────────
+interface ToolResultLike {
+  content?: Array<{ type: string; text?: string }>;
+  details?: unknown;
+}
 
-export function renderSearchCall(args: any, theme: any): any {
-  const query = args.query || "...";
-  const preview = query.length > 60 ? `${query.slice(0, 60)}...` : query;
-  return new Text(
-    theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("web_search ")) +
-      theme.fg("accent", `"${preview}"`),
-    0,
-    0,
+export function renderSearchCall(args: Record<string, unknown>, theme: Theme, context: RenderContext): Text {
+  const query = compact(String(args.query || "…"), 72);
+  const suffix = typeof args.maxResults === "number" ? theme.fg("dim", ` · ${args.maxResults} max`) : "";
+  return updateText(
+    context,
+    theme.fg("toolTitle", theme.bold("web_search")) + " " + theme.fg("accent", `“${query}”`) + suffix,
   );
 }
 
-export function renderExtractCall(args: any, theme: any): any {
-  const urls: string[] = Array.isArray(args.urls)
-    ? args.urls
-    : args.url
-      ? [args.url]
-      : [];
-  const urlText =
-    urls.length === 1
-      ? urls[0]
-      : `${urls.length} URLs`;
-  return new Text(
-    theme.fg("muted", "→ ") +
-      theme.fg("toolTitle", theme.bold("web_fetch ")) +
-      theme.fg("accent", urlText),
-    0,
-    0,
+export function renderExtractCall(args: Record<string, unknown>, theme: Theme, context: RenderContext): Text {
+  const urls = Array.isArray(args.url) ? args.url.filter((url): url is string => typeof url === "string") : typeof args.url === "string" ? [args.url] : [];
+  const target = urls.length === 1 ? compact(urls[0], 76) : `${urls.length || "…"} webpages`;
+  return updateText(
+    context,
+    theme.fg("toolTitle", theme.bold("web_fetch")) + " " + theme.fg("accent", target),
   );
 }
-
-// ── renderResult renderers ───────────────────────────────────────────────────
 
 export function renderSearchResult(
-  result: any,
-  { expanded }: { expanded: boolean },
-  theme: any,
-): any {
-  const details = result.details as (SearchResult & { query?: string; elapsed?: number; maxResults?: number }) | undefined;
-
-  if (details?.status === "running") {
-    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
-    const query = details.query ? ` · \"${details.query.length > 40 ? details.query.slice(0, 40) + "…" : details.query}\"` : "";
-    return new Text(
-      theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("web_search")) +
-        theme.fg("muted", ` · running${elapsed}${query}`),
-      0,
-      0,
-    );
+  result: ToolResultLike,
+  options: { expanded: boolean; isPartial?: boolean },
+  theme: Theme,
+  context: RenderContext,
+) {
+  const details = result.details as SearchDetails | undefined;
+  if (context.isError) return renderError(result, theme, context);
+  if (options.isPartial || details?.status === "running") {
+    const query = details?.status === "running" ? ` · “${compact(details.query, 48)}”` : "";
+    return updateText(context, theme.fg("warning", "Searching") + theme.fg("muted", query));
   }
+  if (!details || details.status !== "success") return renderFallback(result, theme, context);
 
-  if (result.isError || !details || details.status !== "ok") {
-    const errMsg =
-      (details as any)?.error ||
-      result.content?.[0]?.text ||
-      "unknown error";
-    return new Text(
-      theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("web_search")) +
-        theme.fg("error", ` · ${errMsg}`),
-      0,
-      0,
-    );
-  }
+  const duration = formatDuration(details.durationMs);
+  const warningText = details.warnings.length > 0 ? theme.fg("warning", ` · ${details.warnings.length} warning${details.warnings.length === 1 ? "" : "s"}`) : "";
+  const heading =
+    theme.fg("success", "Found ") +
+    theme.fg("text", `${details.results.length} result${details.results.length === 1 ? "" : "s"}`) +
+    theme.fg("dim", ` · ${duration}`) +
+    warningText;
 
-  const items = details.results ?? [];
-  const query = details.query || "";
-  const queryText = query ? ` · "${query.length > 40 ? query.slice(0, 40) + "…" : query}"` : "";
-
-  if (expanded) {
-    const container = new Container();
-    container.addChild(
-      new Text(
-        theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("web_search")) +
-          theme.fg("muted", ` · ${items.length} results${queryText}`),
-        0,
-        0,
-      ),
-    );
-    for (const item of items) {
-      container.addChild(new Spacer(1));
-      container.addChild(
-        new Text(theme.fg("accent", item.title || item.url), 0, 0),
-      );
-      container.addChild(new Text(theme.fg("muted", item.url), 0, 0));
-      if (item.publish_date) {
-        container.addChild(
-          new Text(theme.fg("dim", `Published: ${item.publish_date}`), 0, 0),
-        );
-      }
-      const excerpt = item.excerpts?.[0] || "";
-      if (excerpt) {
-        container.addChild(new Markdown(excerpt, 0, 0, getMarkdownTheme()));
-      }
+  if (!options.expanded) {
+    let text = heading;
+    for (const item of details.results.slice(0, 3)) {
+      text += `\n${theme.fg("accent", compact(item.title || item.url, 88))}`;
+      text += `\n${theme.fg("dim", compact(item.url, 100))}`;
     }
-    return container;
-  }
-
-  // Collapsed
-  let text =
-    theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("web_search")) +
-    theme.fg("muted", ` · ${items.length} results${queryText}`);
-
-  for (const item of items.slice(0, 3)) {
-    const snippet = (item.excerpts?.[0] || "").replace(/\n/g, " ").trim();
-    const snippetPreview =
-      snippet.length > 80 ? `${snippet.slice(0, 80)}…` : snippet;
-    text +=
-      "\n  " +
-      theme.fg("accent", item.title || item.url) +
-      "\n  " +
-      theme.fg("dim", item.url);
-    if (snippetPreview) {
-      text += "\n  " + theme.fg("dim", snippetPreview);
+    if (details.results.length > 3) text += `\n${theme.fg("muted", `… ${details.results.length - 3} more`)}`;
+    if (details.results.length > 0 || details.warnings.length > 0) {
+      text += `\n${theme.fg("dim", keyHint("app.tools.expand", "to expand"))}`;
     }
+    return updateText(context, text);
   }
-  if (items.length > 3) {
-    text += "\n" + theme.fg("muted", `  … ${items.length - 3} more results`);
+
+  const container = new Container();
+  container.addChild(new Text(heading, 0, 0));
+  const content = resultText(result);
+  if (content) {
+    container.addChild(new Spacer(1));
+    container.addChild(new Markdown(content, 0, 0, getMarkdownTheme()));
   }
-  text += "\n" + theme.fg("dim", "(Ctrl+O to expand)");
-  return new Text(text, 0, 0);
+  return container;
 }
 
 export function renderExtractResult(
-  result: any,
-  { expanded }: { expanded: boolean },
-  theme: any,
-): any {
-  const details = result.details as (ExtractResult & { elapsed?: number; urls?: string[] }) | undefined;
-
-  if (details?.status === "running") {
-    const elapsed = details.elapsed ? ` · ${fmtSecs(details.elapsed)}` : "";
-    const urlCount = Array.isArray((details as any).urls) ? ` · ${(details as any).urls.length} URL${(details as any).urls.length !== 1 ? "s" : ""}` : "";
-    return new Text(
-      theme.fg("warning", "⏳ ") +
-        theme.fg("toolTitle", theme.bold("web_fetch")) +
-        theme.fg("muted", ` · running${elapsed}${urlCount}`),
-      0,
-      0,
-    );
+  result: ToolResultLike,
+  options: { expanded: boolean; isPartial?: boolean },
+  theme: Theme,
+  context: RenderContext,
+) {
+  const details = result.details as ExtractDetails | undefined;
+  if (context.isError) return renderError(result, theme, context);
+  if (options.isPartial || details?.status === "running") {
+    const count = details?.status === "running" ? details.urls.length : 0;
+    const target = count > 0 ? ` · ${count} webpage${count === 1 ? "" : "s"}` : "";
+    return updateText(context, theme.fg("warning", "Fetching") + theme.fg("muted", target));
   }
+  if (!details) return renderFallback(result, theme, context);
 
-  if (result.isError || !details || details.status !== "ok") {
-    const errMsg =
-      result.content?.[0]?.text || "unknown error";
-    return new Text(
-      theme.fg("error", "✗ ") +
-        theme.fg("toolTitle", theme.bold("web_fetch")) +
-        theme.fg("error", ` · ${errMsg}`),
-      0,
-      0,
-    );
-  }
+  const duration = formatDuration(details.durationMs);
+  const success = details.results.length;
+  const failures = details.errors.length;
+  const statusColor = failures > 0 ? "warning" : "success";
+  let heading = theme.fg(statusColor, failures > 0 ? "Fetched with errors " : "Fetched ");
+  heading += theme.fg("text", `${success} webpage${success === 1 ? "" : "s"}`);
+  heading += theme.fg("dim", ` · ${duration}`);
+  if (failures > 0) heading += theme.fg("error", ` · ${failures} failed`);
+  if (details.warnings.length > 0) heading += theme.fg("warning", ` · ${details.warnings.length} warning${details.warnings.length === 1 ? "" : "s"}`);
 
-  const items = details.results ?? [];
-  const firstTitle = items[0]?.title || items[0]?.url || "";
-
-  if (expanded) {
-    const container = new Container();
-    container.addChild(
-      new Text(
-        theme.fg("success", "✓ ") +
-          theme.fg("toolTitle", theme.bold("web_fetch")) +
-          theme.fg("muted", ` · ${items.length} URL${items.length !== 1 ? "s" : ""}`),
-        0,
-        0,
-      ),
-    );
-    for (const item of items) {
-      container.addChild(new Spacer(1));
-      container.addChild(
-        new Text(
-          theme.fg("accent", item.title || item.url) +
-            "\n" +
-            theme.fg("muted", item.url),
-          0,
-          0,
-        ),
-      );
-      const content = (item.excerpts ?? []).join("\n\n");
-      if (content) {
-        container.addChild(new Markdown(content, 0, 0, getMarkdownTheme()));
-      }
+  if (!options.expanded) {
+    let text = heading;
+    for (const item of details.results.slice(0, 3)) {
+      text += `\n${theme.fg("accent", compact(item.title || item.url, 88))}`;
+      text += `\n${theme.fg("dim", compact(item.url, 100))}`;
     }
-    return container;
+    for (const error of details.errors.slice(0, 2)) {
+      text += `\n${theme.fg("error", compact(`${error.url} — ${error.error_type}`, 100))}`;
+    }
+    if (success > 0 || failures > 0 || details.warnings.length > 0) {
+      text += `\n${theme.fg("dim", keyHint("app.tools.expand", "to expand"))}`;
+    }
+    return updateText(context, text);
   }
 
-  // Collapsed
-  const totalWords = items.reduce((acc, item) => {
-    const text = (item.excerpts ?? []).join(" ");
-    return acc + text.split(/\s+/).filter(Boolean).length;
-  }, 0);
-  const wordInfo = totalWords > 0 ? ` · ~${totalWords.toLocaleString()} words` : "";
-  const titleInfo =
-    firstTitle.length > 40
-      ? ` · "${firstTitle.slice(0, 40)}…"`
-      : firstTitle
-        ? ` · "${firstTitle}"`
-        : "";
+  const container = new Container();
+  container.addChild(new Text(heading, 0, 0));
+  const content = resultText(result);
+  if (content) {
+    container.addChild(new Spacer(1));
+    container.addChild(new Markdown(content, 0, 0, getMarkdownTheme()));
+  }
+  return container;
+}
 
-  const text =
-    theme.fg("success", "✓ ") +
-    theme.fg("toolTitle", theme.bold("web_fetch")) +
-    theme.fg("muted", ` · ${items.length} URL${items.length !== 1 ? "s" : ""}${titleInfo}`) +
-    theme.fg("dim", `${wordInfo}\n(Ctrl+O to expand)`);
-  return new Text(text, 0, 0);
+function renderError(result: ToolResultLike, theme: Theme, context: RenderContext): Text {
+  const message = compact(resultText(result) || "Parallel request failed.", 500);
+  return updateText(context, theme.fg("error", `Error: ${message}`));
+}
+
+function renderFallback(result: ToolResultLike, theme: Theme, context: RenderContext): Text {
+  return updateText(context, theme.fg("muted", resultText(result)));
+}
+
+function resultText(result: ToolResultLike): string {
+  return (result.content ?? [])
+    .filter((item) => item.type === "text" && typeof item.text === "string")
+    .map((item) => item.text)
+    .join("\n");
+}
+
+function updateText(context: RenderContext, content: string): Text {
+  const text = context.lastComponent instanceof Text ? context.lastComponent : new Text("", 0, 0);
+  text.setText(content);
+  return text;
+}
+
+function compact(value: string, maxLength: number): string {
+  const oneLine = value.replace(/\s+/g, " ").trim();
+  return oneLine.length > maxLength ? `${oneLine.slice(0, Math.max(0, maxLength - 1))}…` : oneLine;
+}
+
+function formatDuration(milliseconds: number): string {
+  if (milliseconds < 1_000) return `${milliseconds}ms`;
+  const seconds = Math.round(milliseconds / 100) / 10;
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
 }

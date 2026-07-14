@@ -1,58 +1,107 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { searchTool } from "./tools/search.js";
+import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
+import { Input, truncateToWidth, type Component, type Focusable, type TUI } from "@mariozechner/pi-tui";
+import { getApiKey, getAuthPath, saveApiKey } from "./config.js";
 import { extractTool } from "./tools/extract.js";
-import { runCli } from "./cli.js";
-import { execSync } from "node:child_process";
+import { searchTool } from "./tools/search.js";
+
+class MaskedInput extends Input {
+  override render(width: number): string[] {
+    const value = this.getValue();
+    this.setValue("•".repeat(value.length));
+    const lines = super.render(width);
+    this.setValue(value);
+    return lines;
+  }
+}
+
+class ApiKeyPrompt implements Component, Focusable {
+  private readonly input = new MaskedInput();
+
+  get focused(): boolean {
+    return this.input.focused;
+  }
+
+  set focused(value: boolean) {
+    this.input.focused = value;
+  }
+
+  constructor(
+    private readonly tui: TUI,
+    private readonly theme: Theme,
+    replacing: boolean,
+    done: (value: string | undefined) => void,
+  ) {
+    this.input.onSubmit = (value) => done(value);
+    this.input.onEscape = () => done(undefined);
+    this.replacing = replacing;
+  }
+
+  private readonly replacing: boolean;
+
+  handleInput(data: string): void {
+    this.input.handleInput(data);
+    this.tui.requestRender();
+  }
+
+  render(width: number): string[] {
+    const title = this.replacing ? "Replace Parallel API key" : "Configure Parallel API key";
+    return [
+      truncateToWidth(this.theme.fg("accent", this.theme.bold(title)), width),
+      truncateToWidth(this.theme.fg("muted", "Paste the key from https://platform.parallel.ai and press Enter."), width),
+      ...this.input.render(width),
+      truncateToWidth(this.theme.fg("dim", "The key is hidden while typing · Escape to cancel"), width),
+    ];
+  }
+
+  invalidate(): void {
+    this.input.invalidate();
+  }
+}
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool(searchTool);
   pi.registerTool(extractTool);
 
   pi.registerCommand("parallel-setup", {
-    description: "Check parallel-cli installation and authentication status",
-    handler: async (_args: string[], ctx: any) => {
-      // 1. Check if parallel-cli is installed
-      let version: string | null = null;
-      try {
-        version = execSync("parallel-cli --version", { encoding: "utf-8" }).trim();
-      } catch {
-        ctx.ui.notify(
-          "✗ parallel-cli not found\n\nInstall it:\n  npm install -g parallel-web-cli\n\nThen authenticate:\n  parallel-cli login",
-          "error"
-        );
+    description: "Configure the Parallel API key used by web_search and web_fetch",
+    handler: async (_args, ctx) => {
+      const mode = (ctx as typeof ctx & { mode?: string }).mode;
+      if (!ctx.hasUI || (mode !== undefined && mode !== "tui")) {
+        ctx.ui.notify("/parallel-setup requires pi's interactive TUI.", "error");
         return;
       }
 
-      // 2. Check authentication
+      let replacing = false;
       try {
-        const auth = await runCli(["auth", "--json"]) as {
-          authenticated: boolean;
-          method: string;
-          token_file: string;
-        };
-
-        if (auth.authenticated) {
-          ctx.ui.notify(`✓ parallel-cli ${version} · authenticated via ${auth.method}`, "success");
-        } else {
-          ctx.ui.notify(
-            `✗ parallel-cli ${version} found but not authenticated\n\nRun: parallel-cli login`,
-            "warning"
-          );
-        }
-      } catch {
-        ctx.ui.notify(
-          `✗ parallel-cli ${version} found but auth check failed\n\nRun: parallel-cli login`,
-          "warning"
-        );
+        replacing = Boolean(await getApiKey());
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        ctx.ui.notify(message, "error");
+        return;
       }
 
-      // 3. Print tool summary
-      ctx.ui.notify(
-        "Available tools:\n" +
-        "  web_search — web search with excerpts\n" +
-        "  web_fetch  — fetch content from URLs",
-        "info"
-      );
+      const apiKey = await ctx.ui.custom<string | undefined>((tui, theme, _keybindings, done) =>
+        new ApiKeyPrompt(tui, theme, replacing, done));
+
+      if (apiKey === undefined) {
+        ctx.ui.notify("Parallel setup cancelled; existing authentication was not changed.", "info");
+        return;
+      }
+      if (!apiKey.trim()) {
+        ctx.ui.notify("Parallel API key cannot be empty; existing authentication was not changed.", "warning");
+        return;
+      }
+
+      try {
+        await saveApiKey(apiKey);
+        ctx.ui.notify(
+          `Parallel API key saved to ${getAuthPath()}. web_search and web_fetch are ready.`,
+          "info",
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        ctx.ui.notify(`Could not save Parallel API key: ${message}`, "error");
+      }
     },
   });
 }

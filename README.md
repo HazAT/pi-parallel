@@ -1,52 +1,55 @@
 # pi-parallel
 
-A [pi](https://github.com/badlogic/pi-mono) extension that gives your agent web intelligence via [parallel.ai](https://parallel.ai). Two tools, zero config once installed — the LLM picks the right one automatically.
+A [pi](https://github.com/badlogic/pi-mono) extension that gives agents web access through the [Parallel](https://parallel.ai) Search and Extract APIs.
 
 | Tool | Use case |
 |------|----------|
-| `web_search` | Quick web lookups — "what is X", "latest news on Y" |
-| `web_fetch` | Pull clean markdown from a URL |
+| `web_search` | Discover sources and find current information |
+| `web_fetch` | Fetch clean markdown from known public webpages |
 
-For deeper investigation, the agent composes these itself: `web_search` to find candidates, then `web_fetch` on the best results.
+The tools call Parallel's V1 REST API directly. No CLI process, MCP server, or SDK is involved.
 
-## Setup
-
-### 1. Get a parallel.ai account
-
-Sign up at [parallel.ai](https://parallel.ai), then install and authenticate the CLI:
-
-```bash
-npm install -g parallel-web-cli
-parallel-cli login
-```
-
-### 2. Install the extension
+## Install
 
 ```bash
 pi install git:github.com/HazAT/pi-parallel
 ```
 
-Or manually:
+Or clone it manually:
 
 ```bash
 git clone https://github.com/HazAT/pi-parallel ~/.pi/agent/extensions/pi-parallel
 ```
 
-### 3. Verify
+## Authentication
 
-Start pi and run `/parallel-setup`. You should see:
+The extension shares authentication with `parallel-cli` at:
 
+```text
+~/.config/parallel-web-tools/auth.json
 ```
-✓ parallel-cli 0.1.2 · authenticated via oauth
+
+If you already ran `parallel-cli login`, the extension uses the API key for the CLI's currently selected organization automatically.
+
+Otherwise, start pi and run:
+
+```text
+/parallel-setup
 ```
 
-That's it. The two tools are now available to your agent.
+Paste an API key from [platform.parallel.ai](https://platform.parallel.ai). The key is hidden while entering it and saved to the shared auth file with `0600` permissions. Run the command again to replace the key.
+
+When a tool is called without authentication, it returns a clear error instructing the agent to ask you to run `/parallel-setup`.
 
 ## How it works
 
-Each tool wraps `parallel-cli` via `spawn()` with JSON output. Both calls are synchronous — fire the CLI, parse the result, return. A 10s heartbeat ticks the TUI so the user sees progress without burning extra API calls.
+- `web_search` sends synchronous `POST /v1/search` requests with ranked, LLM-optimized excerpts.
+- `web_fetch` sends synchronous `POST /v1/extract` requests and reports both successful pages and per-URL failures.
+- Requests use the configured key through the `x-api-key` header and support cancellation.
+- Tool output is capped at 50KB or 2,000 lines.
+- Collapsed tool rows stay compact; expanded rows show page content, warnings, and fetch failures.
 
-The agent decides which tool to use based on `promptGuidelines` baked into each tool registration — no skill file needed.
+The agent chooses between the tools using their built-in descriptions and prompt guidelines. Typical investigation flow is `web_search` to find sources, followed by `web_fetch` for the most relevant pages.
 
 ## License
 

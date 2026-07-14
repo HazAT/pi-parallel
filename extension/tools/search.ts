@@ -1,73 +1,206 @@
-import { Type } from "@sinclair/typebox";
-import { runCliWithHeartbeat, type SearchResult } from "../cli.js";
+import { Type, type Static } from "@sinclair/typebox";
+import {
+  parallelRequest,
+  type ParallelResultItem,
+  type ParallelUsageItem,
+  type ParallelWarning,
+  type SearchResponse,
+} from "../api.js";
+import { truncateToolOutput } from "../output.js";
 import { renderSearchCall, renderSearchResult } from "../render.js";
+import { requireApiKey } from "../config.js";
+
+const SearchParams = Type.Object({
+  query: Type.String({
+    description: "A self-contained description of what to find on the web. Include the key topic, desired facts, and any source or freshness preferences.",
+    minLength: 1,
+    maxLength: 5000,
+  }),
+  searchQueries: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 200 }), {
+    description: "Optional concise keyword queries (2-3 is best). Use diverse terms and angles rather than full sentences.",
+    minItems: 1,
+    maxItems: 5,
+  })),
+  maxResults: Type.Optional(Type.Integer({
+    description: "Maximum number of results. Defaults to 10.",
+    minimum: 1,
+    maximum: 20,
+  })),
+  afterDate: Type.Optional(Type.String({
+    description: "Only include content published on or after this date (YYYY-MM-DD).",
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+  })),
+});
+
+export type SearchInput = Static<typeof SearchParams>;
+
+type SearchResultSummary = Pick<ParallelResultItem, "url" | "title" | "publish_date">;
+type WarningSummary = Pick<ParallelWarning, "type" | "message">;
+
+export type SearchDetails =
+  | {
+      status: "running";
+      query: string;
+      startedAt: number;
+    }
+  | {
+      status: "success";
+      query: string;
+      durationMs: number;
+      searchId: string;
+      sessionId: string;
+      results: SearchResultSummary[];
+      warnings: WarningSummary[];
+      usage: ParallelUsageItem[];
+    };
 
 export const searchTool = {
   name: "web_search",
   label: "Web Search",
-  description: "Search the public web using parallel.ai's AI-powered search engine to find pages, articles, documentation, and other online resources matching a natural language query. Returns a ranked list of results with titles, URLs, publish dates, and relevant text excerpts from each page. Use this when you need to discover information, find specific pages, look up facts, or locate documentation — essentially any time you'd use a search engine. Do NOT use this when you already have a specific URL to fetch (use curl/bash instead). For deeper investigation, follow up promising results with web_fetch to read the full page.",
-  promptSnippet: "Search the public web for pages, articles, and docs. Follow up with web_fetch to read full pages. Not for fetching known URLs (use curl/bash).",
+  description: "Search the public web with Parallel's Search API. Returns ranked pages with titles, URLs, publication dates, and LLM-optimized excerpts. Use this to discover sources or find current information. For a known public webpage, use web_fetch instead. Output is limited to 50KB or 2,000 lines.",
+  promptSnippet: "Search the public web for current information and relevant sources",
   promptGuidelines: [
-    "Call this tool directly as web_search({...}) — do NOT route through the mcp() tool",
-    "Use for web discovery: 'what is X', 'latest news on Y', 'find docs for Z', 'how does W work'",
-    "Do NOT use when you already have a specific URL — use curl or bash instead (raw GitHub URLs, API endpoints, localhost)",
-    "For multi-source synthesis questions, do it yourself: web_search to find candidates, then web_fetch the best 2–5 results and reason across them",
-    "Use afterDate to scope results to recent content (e.g. news, releases, changelogs)",
-    "Returns excerpts — if you need the full content of a found page, follow up with web_fetch",
+    "Use web_search to discover pages, verify current facts, or locate documentation.",
+    "Use web_search searchQueries for 2-3 concise keyword variants when a topic benefits from multiple angles.",
+    "Use web_fetch after web_search when the full content of a promising result is needed.",
+    "Do not use web_search for a URL already provided by the user; use web_fetch for public webpages or curl for raw/API/local URLs.",
   ],
-  parameters: Type.Object({
-    query: Type.String({ description: "The search query — can be natural language ('how to deploy Next.js on Vercel') or keywords ('Next.js Vercel deployment guide'). More specific queries yield more relevant results." }),
-    maxResults: Type.Optional(Type.Number({ description: "Maximum number of results to return. Defaults to 10. Lower values (3-5) are faster for quick lookups; higher values (15-20) are better when you need breadth." })),
-    afterDate: Type.Optional(Type.String({ description: "Filter to results published after this date in YYYY-MM-DD format. Useful for finding recent releases, news, or ensuring up-to-date information." })),
-  }),
-  async execute(_toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, _ctx: any) {
-    try {
-      const args = ["search", params.query, "--max-results", String(params.maxResults ?? 10), "--json"];
-      if (params.afterDate) args.push("--after-date", params.afterDate);
+  parameters: SearchParams,
 
-      const startTime = Date.now();
-      onUpdate?.({
-        content: [{ type: "text" as const, text: `🔎 Search started · \"${params.query}\"` }],
-        details: { status: "running", query: params.query, maxResults: params.maxResults ?? 10 },
-      });
+  async execute(
+    _toolCallId: string,
+    params: SearchInput,
+    signal: AbortSignal | undefined,
+    onUpdate: ((update: { content: Array<{ type: "text"; text: string }>; details: SearchDetails }) => void) | undefined,
+    ctx: { model?: { id: string } },
+  ) {
+    const apiKey = await requireApiKey();
+    const startedAt = Date.now();
+    onUpdate?.({
+      content: [{ type: "text", text: `Searching the web for: ${params.query}` }],
+      details: { status: "running", query: params.query, startedAt },
+    });
 
-      const result: SearchResult = await runCliWithHeartbeat(
-        args,
-        signal,
-        onUpdate,
-        startTime,
-        (elapsed) => ({
-          content: [{ type: "text" as const, text: `🔎 Searching the web · ${params.query}` }],
-          details: {
-            status: "running",
-            query: params.query,
-            maxResults: params.maxResults ?? 10,
-            elapsed,
-          },
-        }),
-      );
-      const count = result.results?.length ?? 0;
-      const summary = result.results?.slice(0, 3).map((r, i) =>
-        `${i + 1}. **${r.title}**\n   ${r.url}\n   ${r.excerpts?.[0]?.slice(0, 150) ?? ""}`
-      ).join("\n\n") ?? "";
-      return {
-        content: [{ type: "text" as const, text: `Found ${count} results for: "${params.query}"\n\n${summary}` }],
-        details: {
-          query: params.query,
-          search_id: result.search_id,
-          status: result.status,
-          results: result.results?.map((r: any) => ({
-            url: r.url,
-            title: r.title,
-            publish_date: r.publish_date,
-            excerpts: r.excerpts?.slice(0, 2),
-          })),
-        },
-      };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: err.message }], details: {}, isError: true };
+    const advancedSettings: Record<string, unknown> = {
+      max_results: params.maxResults ?? 10,
+    };
+    if (params.afterDate) {
+      advancedSettings.source_policy = { after_date: params.afterDate };
     }
+
+    const response = await parallelRequest<SearchResponse>(
+      "/search",
+      {
+        objective: params.query,
+        search_queries: params.searchQueries ?? [params.query],
+        mode: "basic",
+        max_chars_total: 40_000,
+        client_model: ctx.model?.id,
+        advanced_settings: advancedSettings,
+      },
+      signal,
+      apiKey,
+    );
+    assertSearchResponse(response);
+
+    const warnings = response.warnings ?? [];
+    return {
+      content: [{ type: "text" as const, text: truncateToolOutput(formatSearchResponse(params.query, response)) }],
+      details: {
+        status: "success" as const,
+        query: params.query,
+        durationMs: Date.now() - startedAt,
+        searchId: response.search_id,
+        sessionId: response.session_id,
+        results: response.results.slice(0, 20).map(summarizeResult),
+        warnings: warnings.slice(0, 50).map(summarizeWarning),
+        usage: (response.usage ?? []).slice(0, 50).map((item) => ({
+          name: compactField(item.name, 200),
+          count: item.count,
+        })),
+      } satisfies SearchDetails,
+    };
   },
+
   renderCall: renderSearchCall,
   renderResult: renderSearchResult,
 };
+
+function formatSearchResponse(query: string, response: SearchResponse): string {
+  const sections = response.results.map((result, index) => {
+    const lines = [
+      `${index + 1}. ${result.title || "Untitled page"}`,
+      `URL: ${result.url}`,
+    ];
+    if (result.publish_date) lines.push(`Published: ${result.publish_date}`);
+    if (result.excerpts.length > 0) lines.push(result.excerpts.join("\n\n"));
+    return lines.join("\n");
+  });
+
+  let output = `Found ${response.results.length} result${response.results.length === 1 ? "" : "s"} for: ${query}`;
+  if (response.warnings?.length) {
+    output += `\n\nWarnings:\n${response.warnings.map((warning) => `- ${warning.message}`).join("\n")}`;
+  }
+  if (sections.length > 0) output += `\n\n${sections.join("\n\n---\n\n")}`;
+  return output;
+}
+
+function summarizeResult(item: ParallelResultItem): SearchResultSummary {
+  return {
+    url: compactField(item.url, 2_048),
+    title: item.title ? compactField(item.title, 500) : item.title,
+    publish_date: item.publish_date ? compactField(item.publish_date, 100) : item.publish_date,
+  };
+}
+
+function summarizeWarning(warning: ParallelWarning): WarningSummary {
+  return {
+    type: compactField(warning.type, 100),
+    message: compactField(warning.message, 1_000),
+  };
+}
+
+function compactField(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function assertSearchResponse(response: SearchResponse): void {
+  if (
+    typeof response.search_id !== "string" ||
+    typeof response.session_id !== "string" ||
+    !Array.isArray(response.results) ||
+    !response.results.every(isResultItem) ||
+    !isWarnings(response.warnings) ||
+    !isUsage(response.usage)
+  ) {
+    throw new Error("Parallel Search API returned an unexpected response shape.");
+  }
+}
+
+function isResultItem(value: unknown): value is ParallelResultItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<ParallelResultItem>;
+  return (
+    typeof item.url === "string" &&
+    isNullableString(item.title) &&
+    isNullableString(item.publish_date) &&
+    Array.isArray(item.excerpts) &&
+    item.excerpts.every((excerpt) => typeof excerpt === "string")
+  );
+}
+
+function isWarnings(value: unknown): value is ParallelWarning[] | null | undefined {
+  return value == null || (Array.isArray(value) && value.every((warning) =>
+    Boolean(warning) && typeof warning === "object" && typeof (warning as ParallelWarning).message === "string"));
+}
+
+function isUsage(value: unknown): value is ParallelUsageItem[] | null | undefined {
+  return value == null || (Array.isArray(value) && value.every((item) =>
+    Boolean(item) && typeof item === "object" &&
+    typeof (item as ParallelUsageItem).name === "string" &&
+    typeof (item as ParallelUsageItem).count === "number"));
+}
+
+function isNullableString(value: unknown): value is string | null | undefined {
+  return value == null || typeof value === "string";
+}
