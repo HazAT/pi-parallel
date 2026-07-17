@@ -118,6 +118,14 @@ export const extractTool = {
 };
 
 function normalizeUrls(value: unknown): string[] {
+  // Some models serialize the URL array as a JSON string (e.g. "[\"https://a\", \"https://b\"]").
+  if (typeof value === "string" && value.trim().startsWith("[")) {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      // Not JSON — fall through and validate as a plain URL string.
+    }
+  }
   const urls = Array.isArray(value) ? value : [value];
   if (urls.length === 0 || urls.length > 20 || !urls.every((url) => typeof url === "string" && url.trim())) {
     throw new Error("web_fetch requires one URL or an array of 1-20 URLs.");
